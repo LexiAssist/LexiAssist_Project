@@ -39,12 +39,35 @@
 }
 
 /* Main Content Area */
+/* Main Content Area */
 .fc-content {
     flex: 1;
     padding: 40px;
     overflow-y: auto;
     display: flex;
-    gap: 50px; /* Space between Form and Results */
+    gap: 50px;
+    /* New: needed for the background image positioning */
+    position: relative;
+    z-index: 1;
+}
+
+/* THE BACKGROUND IMAGE WATERMARK */
+.fc-content::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Ensure this path matches where you saved the file */
+    background-image: url('../assets/flashcard_bg.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    /* 'cover' fills the area, 'contain' shows the whole image */
+    background-size: cover;
+    /* Makes it subtle so you can read the form over it. Adjust 0.1 to 0.3 as needed */
+    opacity: 0.15;
+    z-index: -1; /* Puts it behind the content */
 }
 
 /* ============ LEFT: SETUP FORM ============ */

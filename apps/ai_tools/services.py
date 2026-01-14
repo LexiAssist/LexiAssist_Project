@@ -71,10 +71,11 @@ def generate_flashcards(topic, text_content, num_cards=5):
     ]
     """
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    # --- FIX IS HERE: Change 1.5 to 2.5 ---
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
     try:
         response = model.generate_content(prompt)
-        # Clean up if Gemini adds markdown ```json ... ```
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
     except Exception as e:

@@ -6,15 +6,13 @@ from .views import (
     writing_assistant_view,
     landing_view,
     clean_text_api,
-    chat_assistant_view,
-    flashcards_view,
-    quizzes_view,
     reading_assistant_upload,
     reading_reader,
     tts_reader,
     delete_activity,
 
 )
+from apps.ai_tools import views as ai_views
 
 # apps/classroom/urls.py
 # apps/classroom/urls.py
@@ -25,9 +23,7 @@ urlpatterns = [
     path('writing-assistant/', writing_assistant_view, name='writing_assistant'),
     path('', landing_view, name='landing'),
     path('api/clean-text/', clean_text_api, name='clean_text_api'),
-    path('chat-assistant/', chat_assistant_view, name='chat_assistant'),
-    path('flashcards/', flashcards_view, name='flashcards'),
-    path('quizzes/', quizzes_view, name='quizzes'),
+   
 
     # FIXED: Changed 'reading-assistant' to 'reading_assistant'
     path('reading-assistant/', reading_assistant_upload, name='reading_assistant'),
@@ -36,4 +32,10 @@ urlpatterns = [
 
     path('text-to-speech/reader/',tts_reader, name='tts_reader'),
     path('activity/delete/<int:activity_id>/',delete_activity, name='delete_activity'),
+
+
+    path('chat/', ai_views.chat_assistant_view, name='chat_assistant'),
+
+    # This specifically fixes the missing reference for flashcards too
+    path('flashcards/', ai_views.flashcard_generator_view, name='flashcards'),
 ]

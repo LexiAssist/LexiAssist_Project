@@ -2,24 +2,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>LexiAssist | Empowering Dyslexic Learners</title>
-    <link rel="stylesheet" href="{% static 'css/landing.css' %}"> </head>
-<body>
-    <nav>
-        <div class="logo">LexiAssist</div>
-        <div class="nav-links">
-            <a href="{% url 'login' %}">Login</a>
-            <a href="{% url 'signup' %}" class="btn-primary">Get Started</a>
-        </div>
-    </nav>
 
-    <main>
-        <section class="hero">
-            <h1>Empowering Every Learner</h1>
-            <p>Our AI-driven tools help you read, write, and study with confidence.</p>
-            <a href="{% url 'signup' %}" class="cta-button">Join LexiAssist</a>
-        </section>
-    </main>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+</head>
+<body>
+
+<header class="navbar">
+    <div class="nav-left">
+        <img src="{% static 'assets/lexiAssist.png' %}" alt="LexiAssist Logo" class="logo">
+        <span class="brand">LexiAssist</span>
+    </div>
+
+    <div class="nav-right">
+        <a href="{% url 'login' %}" class="nav-link">Login</a>
+        <a href="{% url 'signup' %}" class="btn-primary">Get Started</a>
+    </div>
+</header>
+
+<section class="hero">
+    <div class="hero-overlay"></div>
+
+    <div class="hero-content">
+        <h1>
+            Read.<br>
+            Understand.<br>
+            Write. Easier.
+        </h1>
+
+        <p>
+            LexiAssist is designed to make reading, studying, and writing
+            significantly easier for students who learn differently.
+        </p>
+
+        <a href="{% url 'signup' %}" class="btn-primary">Get Started Now</a>
+    </div>
+</section>
+
+<section class="problem">
+    <div class="problem-grid">
+        <div class="problem-card">
+            <span class="icon">😣</span>
+            <p>Struggling to read complex, crowded text.</p>
+        </div>
+
+        <div class="problem-card">
+            <span class="icon">📖</span>
+            <p>Difficulty decoding words and retaining information.</p>
+        </div>
+
+        <div class="problem-card">
+            <span class="icon">✏️</span>
+            <p>Stress and load from writing lengthy assignments.</p>
+        </div>
+
+        <div class="problem-text">
+            <h2>Learning Shouldn’t Be a Struggle.</h2>
+            <p>
+                We understand the biggest challenges for students
+                who learn differently.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="solution">
+    <h2 class="section-title">OUR SOLUTION</h2>
+
+    <div class="solution-grid">
+        <div class="solution-card red">
+            <div class="card-icon">📖</div>
+            <p>Simplified, readable text and structured explanations.</p>
+        </div>
+
+        <div class="solution-card blue">
+            <div class="card-icon">💡</div>
+            <p>Multisensory learning is key.</p>
+        </div>
+
+        <div class="solution-card orange">
+            <div class="card-icon">⚙️</div>
+            <p>Individual needs matter. You choose your perfect settings.</p>
+        </div>
+
+        <div class="solution-card green">
+            <div class="card-icon">✍️</div>
+            <p>Reduce writing stress and leverage strong verbal skills.</p>
+        </div>
+    </div>
+</section>
+
+<section class="how-it-works">
+    <h2>How it works</h2>
+
+    <div class="steps">
+        <div class="step">
+            <span class="step-number">1</span>
+            <h3>Upload</h3>
+            <p>Upload docs, PDF or image</p>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2</span>
+            <h3>Choose Your Tool</h3>
+            <p>Use TTS to listen, AI to simplify, or Reader Mode to customize.</p>
+        </div>
+
+        <div class="step">
+            <span class="step-number">3</span>
+            <h3>Learn Effortlessly</h3>
+            <p>Read, study, and write with reduced stress and increased comprehension.</p>
+        </div>
+    </div>
+
+    <svg class="wave" viewBox="0 0 1200 120" preserveAspectRatio="none">
+        <path d="M0,60 C150,120 350,0 600,60 850,120 1050,0 1200,60" />
+    </svg>
+</section>
+
+<section class="research">
+    <div class="research-overlay"></div>
+
+    <div class="research-content">
+        <h2>Built on Evidence-Based Dyslexia Learning Research.</h2>
+        <p>Unlock easier learning</p>
+        <a href="{% url 'signup' %}" class="btn-secondary">Get Started</a>
+    </div>
+</section>
+
+<footer class="footer">
+    <p>© 2026 LexiAssist. All rights reserved.</p>
+</footer>
+
 </body>
 </html>

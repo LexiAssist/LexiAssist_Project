@@ -143,14 +143,7 @@ def writing_assistant_view(request):
 
 from django.http import HttpResponse
 
-def chat_assistant_view(request):
-    return HttpResponse("<h1 style='font-family: sans-serif; text-align: center; margin-top: 50px;'>Coming soon....</h1>")
 
-def flashcards_view(request):
-    return HttpResponse("<h1 style='font-family: sans-serif; text-align: center; margin-top: 50px;'>Coming soon....</h1>")
-
-def quizzes_view(request):
-    return HttpResponse("<h1 style='font-family: sans-serif; text-align: center; margin-top: 50px;'>Coming soon....</h1>")
 
 
 # --- READING ASSISTANT LOGIC ---

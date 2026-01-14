@@ -1,4 +1,178 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block content %}
-    <h1>Coming Soon</h1>
+<link rel="stylesheet" href="{% static 'css/flashcards.css' %}">
+
+<div class="fc-wrapper">
+
+    <aside class="chat-sidebar">
+        <div class="sidebar-header">
+            <img src="{% static 'assets/logo.svg' %}" style="width: 32px;">
+            <span>LexiAssist</span>
+        </div>
+        </aside>
+
+    <main class="fc-content">
+
+        <div class="fc-setup">
+            <h1 class="section-title">Flashcards</h1>
+            <p class="section-subtitle">Generate study materials from your documents.</p>
+
+            <form id="flashcard-form" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label>Topic / Subject</label>
+                    <input type="text" name="topic" class="input-field" placeholder="e.g. History of Nigeria, Biology...">
+                </div>
+
+                <div class="form-group">
+                    <label>Number of Cards</label>
+                    <div class="range-container">
+                        <input type="range" name="num_cards" min="3" max="15" value="5" oninput="document.getElementById('rangeVal').innerText = this.value">
+                        <span id="rangeVal" class="range-value">5</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Source Material (PDF)</label>
+                    <div class="upload-zone" id="drop-zone">
+                        <img src="{% static 'assets/upload_icon.svg' %}" class="upload-icon">
+                        <div class="upload-text">
+                            Drag & drop your PDF here<br>
+                            <span style="color:var(--primary); font-weight:600;">or click to browse</span>
+                        </div>
+                        <div class="file-name" id="file-name"></div>
+                        <input type="file" name="file" id="file-input" hidden accept=".pdf">
+                    </div>
+                </div>
+
+                <button type="submit" class="generate-btn" id="gen-btn">
+                    <span>✨ Generate Flashcards</span>
+                </button>
+            </form>
+        </div>
+
+        <div class="fc-results" id="results-area">
+            <div class="empty-state">
+                <img src="{% static 'assets/cards_empty.svg' %}" style="width: 60px; opacity: 0.3; margin-bottom: 20px;">
+                <p>Generated cards will appear here.</p>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name');
+    const form = document.getElementById('flashcard-form');
+    const resultsArea = document.getElementById('results-area');
+    const btn = document.getElementById('gen-btn');
+
+    // === 1. DRAG & DROP HANDLING ===
+    dropZone.onclick = () => fileInput.click();
+
+    dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.classList.add('active');
+    };
+
+    dropZone.ondragleave = () => dropZone.classList.remove('active');
+
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('active');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === "application/pdf") {
+            handleFile(file);
+        } else {
+            alert("Please upload a PDF file.");
+        }
+    };
+
+    fileInput.onchange = () => {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    };
+
+    function handleFile(file) {
+        fileNameDisplay.style.display = 'block';
+        fileNameDisplay.innerText = "📄 " + file.name;
+        // Assign file to input manually for drag events
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+    }
+
+    // === 2. FORM SUBMISSION & GENERATION ===
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+
+        // Validation
+        const topic = form.querySelector('[name="topic"]').value;
+        const hasFile = fileInput.files.length > 0;
+
+        if (!topic && !hasFile) {
+            alert("Please enter a topic or upload a file.");
+            return;
+        }
+
+        // UI Loading State
+        btn.innerHTML = `<span>⏳ Analyzing Document...</span>`;
+        btn.disabled = true;
+        resultsArea.innerHTML = `
+            <div class="empty-state" style="border-style: solid; border-color: var(--primary);">
+                <p style="color: var(--primary);">Generating your study material...</p>
+            </div>`;
+
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch('', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                resultsArea.innerHTML = ''; // Clear loading state
+
+                // Create Cards
+                data.cards.forEach((card, index) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'flashcard';
+                    // Animation delay for nice effect
+                    cardDiv.style.animation = `fadeIn 0.5s ease forwards ${index * 0.1}s`;
+
+                    // Flip Logic
+                    cardDiv.onclick = () => cardDiv.classList.toggle('flipped');
+
+                    cardDiv.innerHTML = `
+                        <div class="flashcard-inner">
+                            <div class="fc-front">${card.question}</div>
+                            <div class="fc-back">${card.answer}</div>
+                        </div>
+                    `;
+                    resultsArea.appendChild(cardDiv);
+                });
+            } else {
+                resultsArea.innerHTML = `<div class="empty-state"><p>Error: ${data.message || 'Something went wrong'}</p></div>`;
+            }
+        } catch (error) {
+            console.error(error);
+            resultsArea.innerHTML = `<div class="empty-state"><p>Connection Error.</p></div>`;
+        } finally {
+            // Reset Button
+            btn.innerHTML = `<span>✨ Generate Flashcards</span>`;
+            btn.disabled = false;
+        }
+    };
+</script>
 {% endblock %}
+
+
+

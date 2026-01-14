@@ -29,7 +29,7 @@ urlpatterns = [
     path('api/classroom/', include('apps.classroom.urls')),
     path('api/ai/', include('apps.ai_tools.urls')),
     path('api/comm/', include('apps.communication.urls')),
-    
+    path('ai/', include('apps.ai_tools.urls')),
 ]
 
 if settings.DEBUG:

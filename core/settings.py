@@ -135,3 +135,9 @@ DEFAULT_FROM_EMAIL = 'LexiAssist <olasukanmitayos@gmail.com>'
 
 # After logging out, take the user back to the login page
 LOGOUT_REDIRECT_URL = 'login'
+
+from dotenv import load_dotenv
+import os
+
+# This loads the variables from .env into the system environment
+load_dotenv()

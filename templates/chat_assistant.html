@@ -1,4 +1,210 @@
-{% extends 'base.html' %}
-{% block content %}
-    <h1>Coming Soon</h1>
+{% extends 'base.html' %} {% load static %} {% block content %}
+<link rel="stylesheet" href="{% static 'css/chat.css' %}" />
+
+<div class="chat-wrapper">
+  <aside class="chat-sidebar">
+    <div class="sidebar-header">
+      <img src="{% static 'assets/LexiAssist.png' %}" style="width: 32px" />
+      <span>LexiAssist</span>
+    </div>
+
+    <button class="new-chat" id="newChatBtn">+ New Chat</button>
+
+    <div class="chat-history">
+      <p class="section-label">Recent Sessions</p>
+      <ul>
+        {% for session in chat_sessions %}
+        <li class="{% if active_session.id == session.id %}active{% endif %}">
+          <a
+            href="{% url 'chat_history' session.id %}"
+            style="
+              text-decoration: none;
+              color: inherit;
+              display: flex;
+              gap: 8px;
+              width: 100%;
+            "
+          >
+            <i class="icon-chat">💬</i>
+            {{ session.title }}
+          </a>
+        </li>
+        {% empty %}
+        <li style="color: #ccc; font-style: italic">No history yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </aside>
+
+  <main class="chat-content">
+    <header class="chat-header">
+      <div class="bot-info">
+        <h3>AI Assistant</h3>
+        <span class="status-dot"></span>
+        <span class="status-text">Online</span>
+      </div>
+    </header>
+    <div id="message-container" class="messages">
+      {% for msg in existing_messages %} {% if msg.is_user %}
+      <div class="message user">
+        <div class="bubble">{{ msg.text }}</div>
+      </div>
+      {% else %}
+      <div class="message bot">
+        <div class="avatar bot-avatar">LA</div>
+        <div class="bubble">{{ msg.text }}</div>
+      </div>
+      {% endif %} {% empty %}
+      <div class="message bot">
+        <div class="avatar bot-avatar">LA</div>
+        <div class="bubble">
+          Hello! I’m your LexiAssist partner. Ready to help!
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="input-container">
+      <form id="ai-chat-form" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <input
+          type="hidden"
+          name="session_id"
+          id="session_id"
+          value="{{ active_session.id|default:'' }}"
+        />
+
+        <div class="input-box">
+          <label for="image-input" class="icon-btn" title="Upload Image">
+            <img src="{% static 'assets/add.png' %}" />
+          </label>
+          <input type="file" id="image-input" name="image" hidden />
+
+          <textarea
+            name="user_query"
+            id="user_query"
+            placeholder="Type your message here..."
+            rows="1"
+          ></textarea>
+
+          <button type="submit" class="send-btn">
+            <img src="{% static 'assets/send_icon.png' %}" alt="Send" />
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script>
+  const chatForm = document.getElementById("ai-chat-form");
+  const container = document.getElementById("message-container");
+  const imageInput = document.getElementById("image-input");
+
+  // New Chat Button Logic
+  document.getElementById("newChatBtn").onclick = () => {
+    container.innerHTML = `<div class="message bot"><div class="bubble">New chat started! How can I help?</div></div>`;
+    document.getElementById("session_id").value = "";
+    document
+      .querySelectorAll(".chat-history li")
+      .forEach((li) => li.classList.remove("active"));
+  };
+
+  chatForm.onsubmit = async function (e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const query = document.getElementById("user_query").value;
+    const file = imageInput.files[0]; // Get the file
+    const sessionInput = document.getElementById("session_id");
+
+    if (!query && !file) return;
+
+    // === 1. BUILD USER MESSAGE (Text + Image) ===
+    let userContent = query;
+
+    // If there is an image, create a preview URL
+    if (file) {
+      const imageUrl = URL.createObjectURL(file);
+      // Append the image HTML to the text
+      userContent += `<img src="${imageUrl}" class="chat-image">`;
+    }
+
+    // Show USER message instantly
+    container.innerHTML += `<div class="message user"><div class="bubble">${userContent}</div></div>`;
+
+    // Clear inputs
+    document.getElementById("user_query").value = "";
+    imageInput.value = ""; // Important: Clear the file input so you don't send it again
+    container.scrollTop = container.scrollHeight;
+
+    // === 2. ADD LOADING BUBBLE ===
+    const loadingId = "loading-" + Date.now();
+    container.innerHTML += `
+            <div class="message bot" id="${loadingId}">
+                <div class="avatar bot-avatar">LA</div>
+                <div class="typing-indicator">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>`;
+    container.scrollTop = container.scrollHeight;
+
+    try {
+      const response = await fetch("", {
+        method: "POST",
+        body: formData,
+        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+      });
+
+      const data = await response.json();
+
+      // === 3. REMOVE LOADING BUBBLE ===
+      const loadingBubble = document.getElementById(loadingId);
+      if (loadingBubble) loadingBubble.remove();
+
+      if (data.status === "success") {
+        // Update Sidebar if new chat
+        if (data.session_id && sessionInput.value === "") {
+          sessionInput.value = data.session_id;
+          const historyList = document.querySelector(".chat-history ul");
+          const noHistoryItem = historyList.querySelector(
+            'li[style*="italic"]'
+          );
+          if (noHistoryItem) noHistoryItem.remove();
+
+          const newLi = document.createElement("li");
+          newLi.className = "active";
+          newLi.innerHTML = `
+                        <a href="{% url 'chat_assistant' %}${data.session_id}/" style="text-decoration: none; color: inherit; display: flex; gap: 8px; width: 100%;">
+                            <i class="icon-chat">💬</i>
+                            ${data.session_title}
+                        </a>`;
+          historyList.insertBefore(newLi, historyList.firstChild);
+        }
+
+        // Show AI Reply
+        container.innerHTML += `
+                    <div class="message bot">
+                        <div class="avatar bot-avatar">LA</div>
+                        <div class="bubble">${data.reply}</div>
+                    </div>`;
+      } else {
+        container.innerHTML += `
+                    <div class="message bot">
+                        <div class="avatar bot-avatar" style="background:red">!</div>
+                        <div class="bubble">Error: ${data.reply}</div>
+                    </div>`;
+      }
+      container.scrollTop = container.scrollHeight;
+    } catch (err) {
+      console.error("Fetch error:", err);
+      const loadingBubble = document.getElementById(loadingId);
+      if (loadingBubble) loadingBubble.remove();
+
+      container.innerHTML += `<div class="message bot"><div class="bubble">Connection error. Please try again.</div></div>`;
+    }
+  };
+</script>
 {% endblock %}

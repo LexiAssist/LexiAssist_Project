@@ -1,0 +1,273 @@
+/* ============ ROOT VARIABLES ============ */
+:root {
+    --primary: #4e60ff;       /* Your Brand Blue */
+    --bg-color: #ffffff;
+    --sidebar-bg: #f8f9fa;
+    --text-main: #1a1a1a;
+    --text-muted: #718096;
+    --border-color: #e2e8f0;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* ============ LAYOUT ============ */
+.fc-wrapper {
+    display: flex;
+    height: 100vh;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+}
+
+/* Sidebar styling (Matches Chat) */
+.chat-sidebar {
+    width: 280px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 40px;
+}
+
+/* Main Content Area */
+.fc-content {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+    display: flex;
+    gap: 50px; /* Space between Form and Results */
+}
+
+/* ============ LEFT: SETUP FORM ============ */
+.fc-setup {
+    flex: 0 0 400px; /* Fixed width for the form */
+    display: flex;
+    flex-direction: column;
+}
+
+.section-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.section-subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #4a5568;
+}
+
+.input-field {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-field:focus {
+    border-color: var(--primary);
+}
+
+/* Slider */
+.range-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #f7fafc;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+input[type=range] {
+    flex: 1;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.range-value {
+    font-weight: 700;
+    color: var(--primary);
+    background: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Drag & Drop Zone */
+.upload-zone {
+    border: 2px dashed #cbd5e0;
+    border-radius: 16px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fdfdfd;
+}
+
+.upload-zone:hover {
+    border-color: var(--primary);
+    background: #eff6ff;
+}
+
+.upload-zone.active {
+    border-color: var(--primary);
+    background: #eef2ff;
+    transform: scale(0.99);
+}
+
+.upload-icon {
+    width: 48px;
+    opacity: 0.5;
+    margin-bottom: 15px;
+}
+
+.upload-text {
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.file-name {
+    margin-top: 15px;
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 13px;
+    background: #ebf8ff;
+    padding: 8px;
+    border-radius: 6px;
+    display: none; /* Hidden by default */
+}
+
+/* Generate Button */
+.generate-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(78, 96, 255, 0.3);
+}
+
+.generate-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============ RIGHT: RESULTS GRID ============ */
+.fc-results {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+    align-content: start; /* items start from top */
+    padding-top: 10px;
+}
+
+/* Empty State */
+.empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e0;
+    height: 100%;
+    min-height: 400px;
+    border: 2px dashed #edf2f7;
+    border-radius: 20px;
+}
+
+/* Flashcard 3D Logic */
+.flashcard {
+    background-color: transparent;
+    height: 220px;
+    perspective: 1000px; /* 3D effect depth */
+    cursor: pointer;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+    box-shadow: var(--card-shadow);
+    border-radius: 20px;
+}
+
+/* Flip Class (Added via JS) */
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.fc-front, .fc-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden; /* Hide back when facing front */
+    border-radius: 20px;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1.6;
+    user-select: none;
+}
+
+/* Front Design */
+.fc-front {
+    background-color: white;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+/* Back Design */
+.fc-back {
+    background-color: var(--primary);
+    color: white;
+    transform: rotateY(180deg);
+    font-weight: 500;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+}

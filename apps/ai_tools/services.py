@@ -53,6 +53,7 @@ def extract_text_from_pdf(pdf_file):
     except Exception as e:
         return ""
 
+
 def generate_flashcards(topic, text_content, num_cards=5):
     """
     Asks Gemini to create flashcards in JSON format.
@@ -80,4 +81,40 @@ def generate_flashcards(topic, text_content, num_cards=5):
         return json.loads(clean_text)
     except Exception as e:
         print(f"Error: {e}")
+        return []
+
+
+
+def generate_quiz_data(topic, text_content, num_questions=5):
+    """
+    Asks Gemini to create a quiz in strict JSON format.
+    """
+    prompt = f"""
+    Create a {num_questions}-question multiple choice quiz about "{topic}".
+    Base the questions on this content:
+    {text_content[:8000]}
+
+    STRICT JSON FORMAT REQUIRED:
+    Return ONLY a raw JSON array. Do not use Markdown blocks (no ```json).
+    Structure:
+    [
+        {{
+            "question": "Question text here?",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correct_index": 0
+        }}
+    ]
+    (Note: correct_index 0 means the first option is the answer).
+    """
+
+    # Use the new Flash model
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    try:
+        response = model.generate_content(prompt)
+        # Clean text just in case Gemini adds markdown
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_text)
+    except Exception as e:
+        print(f"Quiz Gen Error: {e}")
         return []

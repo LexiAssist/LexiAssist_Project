@@ -1,5 +1,254 @@
 {% extends 'base.html' %}
-{% block content %}
-    <h1>Coming Soon</h1>
-{% endblock %}
+{% load static %}
 
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/quizzes.css' %}">
+
+<div class="quiz-wrapper">
+    <aside class="chat-sidebar">
+        <div class="sidebar-header">
+            <img src="{% static 'assets/logo.svg' %}" style="width: 32px;">
+            <span>LexiAssist</span>
+        </div>
+
+        <ul class="nav-links">
+            <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="active"><a href="#">Quizzes</a></li>
+        </ul>
+    </aside>
+
+    <main class="quiz-content">
+
+        <div class="quiz-header">
+            <div>
+                <span class="quiz-title">Quizzes</span>
+                <span id="topic-badge" class="topic-badge" style="display:none;">History</span>
+            </div>
+            <div class="tools">
+                <button class="outline-btn" style="border:none;">⚙️</button>
+            </div>
+        </div>
+
+        <div id="setup-section" class="setup-container">
+            <h2 style="margin-bottom:20px;">Create a New Quiz</h2>
+            <p style="color:#718096; margin-bottom:30px;">
+                We'll generate questions based on your most recently uploaded notes.
+            </p>
+
+            <form id="quiz-form">
+                {% csrf_token %}
+                <input type="text" id="topic-input" name="topic"
+                       placeholder="Enter Topic (e.g., History of Hitler)"
+                       class="input-field"
+                       style="width:100%; padding:15px; border:2px solid #e2e8f0; border-radius:12px; margin-bottom:10px;" required>
+
+                <button type="submit" class="start-btn" id="generate-btn">Generate Quiz</button>
+            </form>
+            <p id="loading-text" style="display:none; color:var(--quiz-green); margin-top:15px;">
+                Creating your quiz... this takes a few seconds.
+            </p>
+        </div>
+
+        <div id="quiz-card" class="quiz-card">
+            <div class="question-meta">
+                Question <span id="q-current">1</span>/<span id="q-total">5</span>
+            </div>
+
+            <div class="question-text" id="question-text">
+                Loading question...
+            </div>
+
+            <div class="options-list" id="options-container">
+                </div>
+
+            <button class="next-btn" id="next-btn" onclick="nextQuestion()">Next</button>
+        </div>
+
+        <div id="results-card" class="results-card">
+            <h2 style="font-size:32px; color:#2d3748;">You Scored</h2>
+            <div class="score-badge" id="final-score">0/0</div>
+
+            <div class="result-actions">
+                <button class="outline-btn" onclick="location.reload()">Try Again</button>
+                <button class="start-btn" style="width:auto; margin:0;" onclick="reviewAnswers()">Check Answers</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    let currentQuizData = [];
+    let currentQuestionIndex = 0;
+    let userAnswers = [];
+    let score = 0;
+
+    // --- 1. GENERATE QUIZ ---
+    document.getElementById('quiz-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const topic = document.getElementById('topic-input').value;
+        const btn = document.getElementById('generate-btn');
+        const loadText = document.getElementById('loading-text');
+
+        // UI Loading State
+        btn.disabled = true;
+        btn.innerText = "Generating...";
+        loadText.style.display = 'block';
+
+        const formData = new FormData();
+        formData.append('topic', topic);
+
+        try {
+            const res = await fetch('', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                currentQuizData = data.quiz;
+                startQuiz(topic);
+            } else {
+                alert("Error generating quiz. Please try again.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Connection error.");
+        }
+    };
+
+    // --- 2. START QUIZ ---
+    function startQuiz(topic) {
+        document.getElementById('setup-section').style.display = 'none';
+        document.getElementById('quiz-card').style.display = 'block';
+        document.getElementById('topic-badge').innerText = topic;
+        document.getElementById('topic-badge').style.display = 'inline-block';
+        document.getElementById('q-total').innerText = currentQuizData.length;
+
+        loadQuestion(0);
+    }
+
+    // --- 3. LOAD QUESTION ---
+    function loadQuestion(index) {
+        const q = currentQuizData[index];
+        document.getElementById('q-current').innerText = index + 1;
+        document.getElementById('question-text').innerText = q.question;
+
+        const container = document.getElementById('options-container');
+        container.innerHTML = ''; // Clear old options
+        document.getElementById('next-btn').style.display = 'none';
+
+        q.options.forEach((opt, i) => {
+            const btn = document.createElement('div');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => selectOption(i, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    // --- 4. SELECT OPTION ---
+    function selectOption(selectedIndex, btnElement) {
+        // Remove previous selection style
+        document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+
+        // Add style to clicked
+        btnElement.classList.add('selected');
+
+        // Save answer
+        userAnswers[currentQuestionIndex] = selectedIndex;
+
+        // Show Next Button
+        const nextBtn = document.getElementById('next-btn');
+        nextBtn.style.display = 'block';
+
+        if (currentQuestionIndex === currentQuizData.length - 1) {
+            nextBtn.innerText = "Finish Quiz";
+        } else {
+            nextBtn.innerText = "Next";
+        }
+    }
+
+    // --- 5. NEXT QUESTION ---
+    function nextQuestion() {
+        if (currentQuestionIndex < currentQuizData.length - 1) {
+            currentQuestionIndex++;
+            loadQuestion(currentQuestionIndex);
+        } else {
+            showResults();
+        }
+    }
+
+    // --- 6. SHOW RESULTS ---
+    function showResults() {
+        document.getElementById('quiz-card').style.display = 'none';
+        document.getElementById('results-card').style.display = 'block';
+
+        // Calculate Score
+        score = 0;
+        currentQuizData.forEach((q, i) => {
+            if (userAnswers[i] === q.correct_index) score++;
+        });
+
+        document.getElementById('final-score').innerText = `${score}/${currentQuizData.length}`;
+
+        // Change badge color based on score
+        const badge = document.getElementById('final-score');
+        if (score > (currentQuizData.length / 2)) {
+            badge.style.background = '#378b60'; // Green for pass
+        } else {
+            badge.style.background = '#c53030'; // Red for fail
+        }
+    }
+
+    // --- 7. REVIEW MODE ---
+    function reviewAnswers() {
+        document.getElementById('results-card').style.display = 'none';
+        document.getElementById('quiz-card').style.display = 'block';
+
+        // We reuse the quiz card but disable clicking and show colors
+        currentQuestionIndex = 0;
+        showReviewQuestion(0);
+    }
+
+    function showReviewQuestion(index) {
+        const q = currentQuizData[index];
+        const userChoice = userAnswers[index];
+        const correctChoice = q.correct_index;
+
+        document.getElementById('q-current').innerText = index + 1;
+        document.getElementById('question-text').innerText = q.question;
+
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+
+        q.options.forEach((opt, i) => {
+            const btn = document.createElement('div');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+
+            // Logic for coloring
+            if (i === correctChoice) {
+                btn.classList.add('correct-answer'); // Show Correct Green
+            } else if (i === userChoice && i !== correctChoice) {
+                btn.classList.add('wrong-answer'); // Show Wrong Red
+            }
+
+            container.appendChild(btn);
+        });
+
+        // Update Next Button behavior for review
+        const nextBtn = document.getElementById('next-btn');
+        nextBtn.style.display = 'block';
+        nextBtn.innerText = (index === currentQuizData.length - 1) ? "Back to Score" : "Next Review";
+        nextBtn.onclick = () => {
+            if (index < currentQuizData.length - 1) {
+                showReviewQuestion(index + 1);
+            } else {
+                showResults(); // Go back to score screen
+            }
+        };
+    }
+</script>
+{% endblock %}

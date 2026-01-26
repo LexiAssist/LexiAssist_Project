@@ -1,0 +1,192 @@
+/* ============ QUIZ PAGE VARIABLES ============ */
+:root {
+    --quiz-green: #378b60; /* The specific green from your image */
+    --quiz-bg: #f4f4f4;
+    --text-dark: #2d3748;
+    --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.quiz-wrapper {
+    display: flex;
+    height: 100vh;
+    background: var(--quiz-bg);
+    font-family: 'Inter', sans-serif;
+}
+
+/* Sidebar Override for this page to match image */
+.quiz-wrapper .chat-sidebar .active {
+    background: var(--quiz-green) !important;
+    color: white !important;
+    border-radius: 8px;
+}
+
+/* ============ MAIN CONTENT ============ */
+.quiz-content {
+    flex: 1;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.quiz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.quiz-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.topic-badge {
+    background: #e6fffa;
+    color: var(--quiz-green);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+/* ============ SETUP FORM (Initial State) ============ */
+.setup-container {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+    text-align: center;
+    max-width: 500px;
+    margin: 50px auto;
+}
+
+.start-btn {
+    background: var(--quiz-green);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+    transition: 0.2s;
+}
+.start-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+
+/* ============ QUIZ CARD (Active State) ============ */
+.quiz-card {
+    background: white;
+    padding: 40px;
+    border-radius: 24px;
+    box-shadow: var(--card-shadow);
+    display: none; /* Hidden until quiz starts */
+}
+
+.question-meta {
+    color: var(--quiz-green);
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.question-text {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+/* Options */
+.options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.option-btn {
+    background: #f7fafc;
+    border: 2px solid transparent;
+    padding: 18px 25px;
+    border-radius: 12px;
+    text-align: left;
+    font-size: 16px;
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.option-btn:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+}
+
+.option-btn.selected {
+    background: #f0fff4;
+    border-color: var(--quiz-green);
+    color: var(--quiz-green);
+    font-weight: 600;
+}
+
+.next-btn {
+    background: var(--quiz-green);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    float: right;
+    margin-top: 30px;
+    cursor: pointer;
+    display: none; /* Hidden until option selected */
+}
+
+/* ============ RESULTS SCREEN ============ */
+.results-card {
+    background: white;
+    padding: 60px;
+    border-radius: 24px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    display: none;
+}
+
+.score-badge {
+    background: #c53030; /* Red badge from image */
+    color: white;
+    font-size: 24px;
+    font-weight: 800;
+    padding: 15px 30px;
+    border-radius: 16px;
+    display: inline-block;
+    margin: 20px 0;
+}
+
+.result-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.outline-btn {
+    background: transparent;
+    border: 2px solid var(--quiz-green);
+    color: var(--quiz-green);
+    padding: 10px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Check Answers Mode */
+.correct-answer { background: #c6f6d5 !important; border-color: #2f855a !important; }
+.wrong-answer { background: #fed7d7 !important; border-color: #c53030 !important; }

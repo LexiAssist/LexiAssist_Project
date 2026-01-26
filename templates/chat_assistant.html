@@ -10,6 +10,28 @@
 
     <button class="new-chat" id="newChatBtn">+ New Chat</button>
 
+    <button
+      class="new-chat"
+      id="uploadNoteBtn"
+      style="margin-top: 10px; background-color: #2c3e50"
+    >
+      📄 Upload Class Note
+    </button>
+    <input type="file" id="pdf-input" accept="application/pdf" hidden />
+    <div
+      id="study-mode-indicator"
+      style="
+        display: none;
+        padding: 10px;
+        color: #27ae60;
+        font-weight: bold;
+        font-size: 0.9em;
+        text-align: center;
+      "
+    >
+      ✅ Study Buddy Active
+    </div>
+
     <div class="chat-history">
       <p class="section-label">Recent Sessions</p>
       <ul>
@@ -39,9 +61,9 @@
   <main class="chat-content">
     <header class="chat-header">
       <div class="bot-info">
-        <h3>AI Assistant</h3>
+        <h3 id="chat-title">AI Assistant</h3>
         <span class="status-dot"></span>
-        <span class="status-text">Online</span>
+        <span class="status-text" id="chat-status">General Chat</span>
       </div>
     </header>
     <div id="message-container" class="messages">
@@ -102,109 +124,156 @@
   const container = document.getElementById("message-container");
   const imageInput = document.getElementById("image-input");
 
-  // New Chat Button Logic
-  document.getElementById("newChatBtn").onclick = () => {
-    container.innerHTML = `<div class="message bot"><div class="bubble">New chat started! How can I help?</div></div>`;
-    document.getElementById("session_id").value = "";
-    document
-      .querySelectorAll(".chat-history li")
-      .forEach((li) => li.classList.remove("active"));
+  // RAG / Study Buddy Elements
+  const uploadBtn = document.getElementById("uploadNoteBtn");
+  const pdfInput = document.getElementById("pdf-input");
+  const studyIndicator = document.getElementById("study-mode-indicator");
+  const chatTitle = document.getElementById("chat-title");
+  const chatStatus = document.getElementById("chat-status");
+
+  let isStudyMode = false; // Toggle state
+
+  // --- 1. HANDLE PDF UPLOAD ---
+  uploadBtn.onclick = () => pdfInput.click();
+
+  pdfInput.onchange = async function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    // Show uploading message
+    container.innerHTML += `<div class="message bot"><div class="bubble">⏳ Reading your note: "${file.name}"... Please wait.</div></div>`;
+    container.scrollTop = container.scrollHeight;
+
+    const formData = new FormData();
+    formData.append("document", file);
+
+    try {
+      // Send to your new Django API
+      const response = await fetch("/api/ai/api/upload-note/", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (data.status === "success") {
+        // ACTIVATE STUDY MODE
+        isStudyMode = true;
+        studyIndicator.style.display = "block";
+        chatTitle.innerText = "Study Buddy 📚";
+        chatStatus.innerText = "Reading: " + file.name;
+
+        container.innerHTML += `<div class="message bot"><div class="bubble">✅ I've read your note! Ask me anything about it.</div></div>`;
+      } else {
+        container.innerHTML += `<div class="message bot"><div class="bubble" style="color:red">Error: ${data.message}</div></div>`;
+      }
+    } catch (err) {
+      console.error(err);
+      container.innerHTML += `<div class="message bot"><div class="bubble">Upload failed. Check your connection.</div></div>`;
+    }
+    container.scrollTop = container.scrollHeight;
   };
 
+  // --- 2. NEW CHAT (RESET) ---
+  document.getElementById("newChatBtn").onclick = () => {
+    // Reset UI
+    container.innerHTML = `<div class="message bot"><div class="bubble">New chat started! How can I help?</div></div>`;
+    document.getElementById("session_id").value = "";
+
+    // Reset Mode
+    isStudyMode = false;
+    studyIndicator.style.display = "none";
+    chatTitle.innerText = "AI Assistant";
+    chatStatus.innerText = "General Chat";
+  };
+
+  // --- 3. HANDLE MESSAGE SUBMIT ---
   chatForm.onsubmit = async function (e) {
     e.preventDefault();
-    const formData = new FormData(this);
     const query = document.getElementById("user_query").value;
-    const file = imageInput.files[0]; // Get the file
-    const sessionInput = document.getElementById("session_id");
+    const file = imageInput.files[0];
 
     if (!query && !file) return;
 
-    // === 1. BUILD USER MESSAGE (Text + Image) ===
+    // Display User Message
     let userContent = query;
-
-    // If there is an image, create a preview URL
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      // Append the image HTML to the text
-      userContent += `<img src="${imageUrl}" class="chat-image">`;
-    }
-
-    // Show USER message instantly
+    if (file) userContent += `<br><small>[Image Attached]</small>`;
     container.innerHTML += `<div class="message user"><div class="bubble">${userContent}</div></div>`;
 
-    // Clear inputs
+    // Clear Inputs
     document.getElementById("user_query").value = "";
-    imageInput.value = ""; // Important: Clear the file input so you don't send it again
+    imageInput.value = "";
     container.scrollTop = container.scrollHeight;
 
-    // === 2. ADD LOADING BUBBLE ===
+    // Show Typing Indicator
     const loadingId = "loading-" + Date.now();
     container.innerHTML += `
             <div class="message bot" id="${loadingId}">
                 <div class="avatar bot-avatar">LA</div>
                 <div class="typing-indicator">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
                 </div>
             </div>`;
     container.scrollTop = container.scrollHeight;
 
     try {
-      const response = await fetch("", {
-        method: "POST",
-        body: formData,
-        headers: { "X-CSRFToken": "{{ csrf_token }}" },
-      });
+      // === ROUTING LOGIC ===
+      if (isStudyMode) {
+        // A. USE STUDY BUDDY (RAG) API
+        const formData = new FormData();
+        formData.append("message", query);
 
-      const data = await response.json();
+        const response = await fetch("/api/ai/api/chat/", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
 
-      // === 3. REMOVE LOADING BUBBLE ===
-      const loadingBubble = document.getElementById(loadingId);
-      if (loadingBubble) loadingBubble.remove();
+        removeLoading(loadingId);
 
-      if (data.status === "success") {
-        // Update Sidebar if new chat
-        if (data.session_id && sessionInput.value === "") {
-          sessionInput.value = data.session_id;
-          const historyList = document.querySelector(".chat-history ul");
-          const noHistoryItem = historyList.querySelector(
-            'li[style*="italic"]'
-          );
-          if (noHistoryItem) noHistoryItem.remove();
-
-          const newLi = document.createElement("li");
-          newLi.className = "active";
-          newLi.innerHTML = `
-                        <a href="{% url 'chat_assistant' %}${data.session_id}/" style="text-decoration: none; color: inherit; display: flex; gap: 8px; width: 100%;">
-                            <i class="icon-chat">💬</i>
-                            ${data.session_title}
-                        </a>`;
-          historyList.insertBefore(newLi, historyList.firstChild);
-        }
-
-        // Show AI Reply
-        container.innerHTML += `
-                    <div class="message bot">
-                        <div class="avatar bot-avatar">LA</div>
-                        <div class="bubble">${data.reply}</div>
-                    </div>`;
+        // Show Answer
+        const reply = data.answer || data.error;
+        container.innerHTML += `<div class="message bot"><div class="avatar bot-avatar">📚</div><div class="bubble">${reply}</div></div>`;
       } else {
-        container.innerHTML += `
-                    <div class="message bot">
-                        <div class="avatar bot-avatar" style="background:red">!</div>
-                        <div class="bubble">Error: ${data.reply}</div>
-                    </div>`;
-      }
-      container.scrollTop = container.scrollHeight;
-    } catch (err) {
-      console.error("Fetch error:", err);
-      const loadingBubble = document.getElementById(loadingId);
-      if (loadingBubble) loadingBubble.remove();
+        // B. USE NORMAL DJANGO CHAT (Existing Logic)
+        const formData = new FormData(this); // Collects session_id, image, etc.
+        // Re-add the query because we cleared the input
+        formData.set("user_query", query);
 
-      container.innerHTML += `<div class="message bot"><div class="bubble">Connection error. Please try again.</div></div>`;
+        const response = await fetch("", {
+          // Posts to current URL
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": "{{ csrf_token }}" },
+        });
+        const data = await response.json();
+
+        removeLoading(loadingId);
+
+        if (data.status === "success") {
+          container.innerHTML += `<div class="message bot"><div class="avatar bot-avatar">LA</div><div class="bubble">${data.reply}</div></div>`;
+
+          // Update Session ID if new
+          if (
+            data.session_id &&
+            document.getElementById("session_id").value === ""
+          ) {
+            document.getElementById("session_id").value = data.session_id;
+          }
+        } else {
+          container.innerHTML += `<div class="message bot"><div class="bubble">Error: ${data.reply}</div></div>`;
+        }
+      }
+    } catch (err) {
+      console.error("Chat error:", err);
+      removeLoading(loadingId);
+      container.innerHTML += `<div class="message bot"><div class="bubble">Connection error.</div></div>`;
     }
+    container.scrollTop = container.scrollHeight;
   };
+
+  function removeLoading(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
 </script>
 {% endblock %}

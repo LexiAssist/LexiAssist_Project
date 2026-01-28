@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-xn8^&aajfq*w2lm0ayvf@y3%&g607#4$fiy2w9#!wyqguw*o^h
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [*]
 
 
 # Application definition
@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -120,10 +121,20 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-# This tells Django where to look for your static folder
-STATICFILES_DIRS = [BASE_DIR / 'static']
-AUTH_USER_MODEL = 'authentication.User'
 
+# Tells Django where your static files are locally
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Tells Django where to put files when deploying (Required for Render)
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Compresses files for speed (Required for Render)
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+
+
+# Keep your custom user model setting
+AUTH_USER_MODEL = 'authentication.User'
 # Email Configuration for Real Verification
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'

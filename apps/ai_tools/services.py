@@ -53,6 +53,23 @@ def extract_text_from_pdf(pdf_file):
     except Exception as e:
         return ""
 
+def extract_text_from_docx(docx_file):
+    """
+    Extract text from a Word document (.docx)
+    """
+    try:
+        from docx import Document
+        doc = Document(docx_file)
+
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+
+        return text
+    except Exception as e:
+        logger.error(f"Error extracting text from DOCX: {e}")
+        return ""
+
 
 def generate_flashcards(topic, text_content, num_cards=5):
     """

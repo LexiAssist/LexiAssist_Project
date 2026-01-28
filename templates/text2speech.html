@@ -26,8 +26,7 @@
         </div>
     </div>
 
-    <div class="upload-area">
-        <form method="POST" enctype="multipart/form-data" id="tts-form">
+    <form method="POST" enctype="multipart/form-data" id="tts-form" action="{% url 'text2speech' %}">
             {% csrf_token %}
 
             <div class="upload-box" id="drop-zone" onclick="document.getElementById('file-upload').click()">

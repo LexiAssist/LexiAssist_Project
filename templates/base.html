@@ -6,11 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LexiAssist{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'assets/favicon.png' %}">
+
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=1.1">
     <link rel="stylesheet" href="{% static 'css/themes.css' %}">
     {% block extra_css %}{% endblock %}
 
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
 
     <div class="dashboard-wrapper">
@@ -22,7 +25,8 @@
             <ul class="nav-menu">
                 <li class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                     <a href="{% url 'dashboard' %}">
-                        <span class="icon">⊞</span> Dashboard
+                        <span class="icon"><i data-lucide="layout-dashboard"></i></span>
+                        Dashboard
                     </a>
                 </li>
 
@@ -30,25 +34,28 @@
 
                 <li class="nav-item {% if request.resolver_match.url_name == 'text2speech' %}active{% endif %}">
                     <a href="{% url 'text2speech' %}">
-                        <span class="icon">🎙</span> Text to speech
+                        <span class="icon"><i data-lucide="mic"></i></span>
+                        Text to speech
                     </a>
                 </li>
 
                 <li class="nav-item {% if request.resolver_match.url_name == 'reading_assistant' %}active{% endif %}">
                     <a href="{% url 'reading_assistant' %}">
-                        <span class="icon">📖</span> Reading Assistant
+                        <span class="icon"><i data-lucide="book-open"></i></span>
+                        Reading Assistant
                     </a>
                 </li>
 
                 <li class="nav-item {% if request.resolver_match.url_name == 'writing_assistant' %}active{% endif %}">
                     <a href="{% url 'writing_assistant' %}">
-                        <span class="icon">✍</span> Writing Assistant
+                        <span class="icon"><i data-lucide="pen-tool"></i></span>
+                        Writing Assistant
                     </a>
                 </li>
 
                 <li class="nav-item" id="studyBuddyBtn" style="cursor: pointer;">
                     <div style="display: flex; align-items: center; padding: 12px 20px; color: white; gap: 12px;">
-                        <span class="icon">✨</span>
+                        <span class="icon"><i data-lucide="sparkles"></i></span>
                         <span>StudyBuddy</span>
                         <span class="arrow" style="margin-left: auto; font-size: 10px;">▼</span>
                     </div>
@@ -57,8 +64,8 @@
                 <div class="sub-menu hidden" id="studyBuddyMenu">
                     <a href="{% url 'chat_assistant' %}" class="sub-item">Chat Assistant</a>
                     <a href="{% url 'flashcards' %}" class="sub-item">Flashcards</a>
-
                     <a href="{% url 'quizzes' %}" class="sub-item">Quizzes</a>
+                </div>
             </ul>
 
             <div class="logout-container" style="margin-top: auto;">
@@ -67,7 +74,7 @@
                 </form>
                 <li class="nav-item logout-item">
                     <a href="javascript:void(0)" onclick="confirmLogout(event)">
-                        <img src="{% static 'assets/logout.png' %}" alt="Logout" width="20">
+                        <span class="icon"><i data-lucide="log-out"></i></span>
                         <span>Logout</span>
                     </a>
                 </li>
@@ -82,10 +89,14 @@
                 </div>
 
                 <div class="header-icons-container">
-                    <span class="icon-item">⚙️</span>
-                    <button id="theme-toggle" class="icon-btn theme-icon">🌙</button>
+                    <span class="icon-item"><i data-lucide="settings"></i></span>
+
+                    <button id="theme-toggle" class="icon-btn theme-icon">
+                        <i data-lucide="moon"></i>
+                    </button>
+
                     <div class="profile-wrapper">
-                        <div class="profile-pic-placeholder">👤</div>
+                        <div class="profile-pic-placeholder"><i data-lucide="user"></i></div>
                         <span class="dropdown-arrow">▼</span>
                     </div>
                 </div>
@@ -97,26 +108,51 @@
     </div>
 
     <script>
-        // Theme Logic
+        // 1. TURN ON ICONS (Important!)
+        lucide.createIcons();
+
+        // 2. THEME LOGIC (Dark/Light Mode)
         const themeBtn = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
         const savedTheme = localStorage.getItem('theme') || 'light';
+
+        // Apply saved theme on load
         htmlElement.setAttribute('data-theme', savedTheme);
 
         if (themeBtn) {
-            themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            // Set initial icon based on theme
+            if (savedTheme === 'dark') {
+                themeBtn.innerHTML = '<i data-lucide="sun"></i>';
+            } else {
+                themeBtn.innerHTML = '<i data-lucide="moon"></i>';
+            }
+            lucide.createIcons(); // Refresh icons after setting innerHTML
+
+            // Toggle Click Handler
             themeBtn.addEventListener('click', () => {
                 const currentTheme = htmlElement.getAttribute('data-theme');
                 const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                // Update HTML and LocalStorage
                 htmlElement.setAttribute('data-theme', newTheme);
                 localStorage.setItem('theme', newTheme);
-                themeBtn.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+
+                // Swap the icon
+                if (newTheme === 'dark') {
+                    themeBtn.innerHTML = '<i data-lucide="sun"></i>';
+                } else {
+                    themeBtn.innerHTML = '<i data-lucide="moon"></i>';
+                }
+
+                // Refresh icons so the new one shows up
+                lucide.createIcons();
             });
         }
 
-        // StudyBuddy Dropdown Logic
+        // 3. STUDY BUDDY DROPDOWN
         const studyBuddyBtn = document.getElementById('studyBuddyBtn');
         const studyBuddyMenu = document.getElementById('studyBuddyMenu');
+
         if (studyBuddyBtn) {
             studyBuddyBtn.addEventListener('click', () => {
                 studyBuddyMenu.classList.toggle('hidden');
@@ -125,7 +161,7 @@
             });
         }
 
-        // Logout Confirmation
+        // 4. LOGOUT CONFIRMATION
         function confirmLogout(event) {
             event.preventDefault();
             if (confirm("Are you sure you want to logout?")) {
@@ -133,7 +169,7 @@
             }
         }
 
-        // Keep parent menu open if a sub-item is active
+        // 5. KEEP MENU OPEN (If on a sub-page)
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
             document.querySelectorAll('.sub-item').forEach(item => {

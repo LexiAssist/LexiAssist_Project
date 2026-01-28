@@ -1,32 +1,25 @@
 from langchain.tools import tool
-from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 from dotenv import load_dotenv
 import os
-from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
 from typing import Literal
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_community.vectorstores import FAISS
+import google.generativeai as genai
 
 # --- IMPORT EMBEDDINGS CORRECTLY ---
 from ai_engine.embeddings import embedding_model
 
 load_dotenv()
-HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-# --- 1. SETUP LLM ---
-repo_id = "mistralai/Mistral-Nemo-Base-2407"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-llm = HuggingFaceEndpoint(
-    repo_id=repo_id,
-    huggingfacehub_api_token=HUGGINGFACEHUB_API_TOKEN,
-    temperature=0.3,
-    max_new_tokens=512,
-    timeout=180,  # 3 minute timeout for slow responses
-)
+# Configure Gemini
+genai.configure(api_key=GEMINI_API_KEY)
 
-llm_chain = llm
+# --- 1. SETUP LLM (Using Native Gemini) ---
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 # --- 2. DEFINE THE RETRIEVER TOOL ---
@@ -83,24 +76,24 @@ def retrieve_data(query: str) -> str:
         for i, doc in enumerate(docs[:3]):  # Show first 3 only
             print(f"📄 Doc {i+1} preview: {doc.page_content[:150]}...")
 
-        # Create QA Chain
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=llm_chain,
-            chain_type="stuff",
-            retriever=Retriever,
-            return_source_documents=False
-        )
-        print("✅ QA Chain created")
+        # Combine the retrieved documents
+        context = "\n\n".join([doc.page_content for doc in docs])
 
-        # Get the answer
-        print("🤖 Invoking QA chain...")
-        result = qa_chain.invoke({"query": query})
+        # Create the prompt
+        prompt = f"""You are a Study Assistant. Use the Context below to answer the Question.
+If the answer isn't in the context, say 'I don't see that in your notes'.
 
-        # Handle different result formats
-        if isinstance(result, dict):
-            answer = result.get('result', str(result))
-        else:
-            answer = str(result)
+Context: {context}
+
+Question: {query}
+
+Answer:"""
+
+        print("✅ Prompt created, calling Gemini...")
+
+        # Call Gemini directly
+        response = gemini_model.generate_content(prompt)
+        answer = response.text
 
         print(f"\n💬 AI Answer Preview: {answer[:200]}...")
         print(f"{'='*60}\n")
@@ -121,39 +114,34 @@ def retrieve_data(query: str) -> str:
 # !!! THIS WAS THE MISSING LINE !!!
 retriever_tool = retrieve_data
 
-# --- 3. CHAT MODEL SETUP ---
-chat_model = HuggingFaceEndpoint(
-    repo_id="deepseek-ai/DeepSeek-R1",
-    task="conversational",
-    do_sample=False,
-    repetition_penalty=1.03,
-    provider="auto",
-)
-chat = ChatHuggingFace(llm=chat_model, temperature=0)
+# --- 3. CHAT MODEL SETUP (Using Native Gemini) ---
+chat_model = genai.GenerativeModel("gemini-2.5-flash")
 
 def generate_query_or_respond(state: MessagesState):
     """Decide whether to retrieve data or just chat."""
     print(f"\n🤖 generate_query_or_respond called")
     print(f"📨 State messages: {state['messages']}")
 
-    # We bind the tool so the LLM knows it exists
-    response = chat.bind_tools([retriever_tool]).invoke(state["messages"])
+    # Get the last message
+    last_message = state["messages"][-1]
 
-    print(f"💬 LLM Response: {response}\n")
+    # Simple logic: if it looks like a question about documents, use retriever
+    question_keywords = ["what", "how", "explain", "summary", "tell me", "describe"]
+    user_content = last_message.content.lower() if hasattr(last_message, 'content') else str(last_message).lower()
+
+    if any(keyword in user_content for keyword in question_keywords):
+        # Use the retriever
+        answer = retrieve_data.invoke({"query": user_content})
+        response = AIMessage(content=answer)
+    else:
+        # Just chat normally
+        response_text = chat_model.generate_content(user_content).text
+        response = AIMessage(content=response_text)
+
+    print(f"💬 Response: {response}\n")
     return {"messages": [response]}
 
 # --- 4. GRADER (SIMPLIFIED) ---
-# We use a simple prompt instead of a complex agent to avoid crashes
-GRADE_PROMPT = PromptTemplate.from_template(
-    "You are a grader assessing relevance.\n"
-    "Document: {context}\n"
-    "Question: {question}\n"
-    "Does the document contain keywords related to the question? \n"
-    "Reply ONLY with the word 'YES' or 'NO'."
-)
-
-grade_chain = GRADE_PROMPT | chat_model
-
 def grade_documents(state: MessagesState) -> Literal["generate_answer", "rewrite_question"]:
     """Check if retrieved document is relevant."""
     print("\n📊 GRADING DOCUMENTS...")
@@ -164,8 +152,15 @@ def grade_documents(state: MessagesState) -> Literal["generate_answer", "rewrite
     print(f"Question: {question}")
     print(f"Context preview: {context[:200]}...")
 
+    # Create grading prompt
+    grade_prompt = f"""You are a grader assessing relevance.
+Document: {context[:1000]}
+Question: {question}
+Does the document contain keywords related to the question?
+Reply ONLY with the word 'YES' or 'NO'."""
+
     # Run the grader
-    response = grade_chain.invoke({"question": question, "context": context})
+    response = chat_model.generate_content(grade_prompt).text
     print(f"Grader response: {response}")
 
     # Simple check
@@ -177,13 +172,6 @@ def grade_documents(state: MessagesState) -> Literal["generate_answer", "rewrite
         return "rewrite_question"
 
 # --- 5. REWRITE QUESTION ---
-REWRITE_PROMPT_TEMPLATE = PromptTemplate.from_template(
-    "Rewrite this question to be clearer for a search engine:\n"
-    "Original: {question}\n"
-    "Improved Question:"
-)
-rewrite_chain = REWRITE_PROMPT_TEMPLATE | chat_model
-
 def rewrite_question(state: MessagesState) -> dict:
     """Rewrite the question if the document wasn't relevant."""
     print("\n✏️ REWRITING QUESTION...")
@@ -191,21 +179,16 @@ def rewrite_question(state: MessagesState) -> dict:
     question = state["messages"][0].content
     print(f"Original question: {question}")
 
-    response = rewrite_chain.invoke({"question": question})
+    rewrite_prompt = f"""Rewrite this question to be clearer for a search engine:
+Original: {question}
+Improved Question:"""
+
+    response = chat_model.generate_content(rewrite_prompt).text
     print(f"Rewritten question: {response}")
 
     return {"messages": [HumanMessage(content=response)]}
 
 # --- 6. GENERATE ANSWER ---
-GENERATE_PROMPT_TEMPLATE = PromptTemplate.from_template(
-    "You are a Study Assistant. Use the Context below to answer the Question.\n"
-    "If the answer isn't in the context, say 'I don't see that in your notes'.\n\n"
-    "Context: {context}\n\n"
-    "Question: {question}\n"
-    "Answer:"
-)
-generate_chain = GENERATE_PROMPT_TEMPLATE | chat_model
-
 def generate_answer(state: MessagesState):
     """Generate the final answer."""
     print("\n💡 GENERATING FINAL ANSWER...")
@@ -216,7 +199,16 @@ def generate_answer(state: MessagesState):
     print(f"Question: {question}")
     print(f"Context preview: {context[:200]}...")
 
-    response = generate_chain.invoke({"question": question, "context": context})
+    answer_prompt = f"""You are a Study Assistant. Use the Context below to answer the Question.
+If the answer isn't in the context, say 'I don't see that in your notes'.
+
+Context: {context}
+
+Question: {question}
+
+Answer:"""
+
+    response = chat_model.generate_content(answer_prompt).text
     print(f"Generated answer: {response}")
 
-    return {"messages": [response]}
+    return {"messages": [AIMessage(content=response)]}

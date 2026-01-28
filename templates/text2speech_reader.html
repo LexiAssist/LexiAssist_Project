@@ -83,8 +83,7 @@
             <span>Highlight color</span>
             <span class="color-dot"></span>
         </div>
-
-        <button class="export-btn" type="button">
+        <button class="export-btn" type="button" onclick="exportAudioMP3()">
             🎧 Export Audio (MP3)
         </button>
     </aside>
@@ -193,5 +192,71 @@
 
     // Clean up
     window.onbeforeunload = () => synth.cancel();
+
+    // ============================
+    // 5. Export Audio Function (Step 3: THE TRIGGER)
+    // ============================
+    function exportAudioMP3() {
+        // Get all sentence text
+        const sentences = document.querySelectorAll('.sentence');
+        let fullText = '';
+        sentences.forEach(s => {
+            fullText += s.innerText + ' ';
+        });
+
+        if (!fullText.trim()) {
+            alert('No text available to convert');
+            return;
+        }
+
+        // Show loading
+        const exportBtn = document.querySelector('.export-btn');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '⏳ Generating...';
+        exportBtn.disabled = true;
+
+        // Prepare data
+        const formData = new FormData();
+        formData.append('text', fullText.trim());
+        formData.append('language', 'en');
+
+        // Call TTS API
+        fetch('{% url "text_to_speech" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Audio generation failed');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Create download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '{{ filename }}_audio.mp3';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+            // Reset button
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+
+            alert('✅ Audio file downloaded successfully!');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+            alert('❌ Failed to generate audio. Please try again.');
+        });
+    }
 </script>
 {% endblock %}

@@ -1,37 +1,45 @@
 from langchain.tools import tool
 from dotenv import load_dotenv
 import os
-from langchain_core.prompts import PromptTemplate
 from langgraph.graph import MessagesState
-from pydantic import BaseModel, Field
 from typing import Literal
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_community.vectorstores import FAISS
-import google.generativeai as genai
 
-# --- 1. CORRECT IMPORT: Import the FUNCTION, not the variable ---
+# --- SAFE IMPORT: Handle missing library gracefully ---
+try:
+    import google.generativeai as genai
+    HAS_GEMINI = True
+except ImportError:
+    HAS_GEMINI = False
+    print("⚠️ WARNING: google-generativeai library not found.")
+
+# --- LAZY LOADER IMPORT ---
 from ai_engine.embeddings import get_embedding_model
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# --- SAFE CONFIGURATION ---
+if HAS_GEMINI and GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"⚠️ Error configuring Gemini: {e}")
 
-# --- 2. SETUP LLM (Using Native Gemini) ---
-# We use a function to get the model to be safe, though Gemini client is lightweight
+# --- HELPER: Get Model Safely ---
 def get_gemini_model():
+    if not HAS_GEMINI:
+        raise ImportError("Google Generative AI library is missing.")
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY is missing in Environment Variables.")
     return genai.GenerativeModel("gemini-2.5-flash")
 
-# --- 3. DEFINE THE RETRIEVER TOOL ---
+# --- TOOL DEFINITION ---
 @tool
 def retrieve_data(query: str) -> str:
     """Retrieve data from the saved vectorstore on disk."""
-    print(f"\n{'='*60}")
-    print(f"🔍 RETRIEVE_DATA CALLED")
-    print(f"📝 Query: {query}")
-    print(f"{'='*60}\n")
+    print(f"🔍 RETRIEVE_DATA: {query}")
 
     try:
         from django.conf import settings
@@ -40,7 +48,7 @@ def retrieve_data(query: str) -> str:
         if not os.path.exists(faiss_path):
             return "❌ No document found. Please upload a PDF first."
 
-        # --- FIX: Load the "Brain" using the LAZY loader ---
+        # Lazy load the embedding model
         embedding_model = get_embedding_model()
 
         vector_store = FAISS.load_local(
@@ -52,25 +60,14 @@ def retrieve_data(query: str) -> str:
         Retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 5})
         docs = Retriever.invoke(query)
 
-        if len(docs) == 0:
-            return "I couldn't find relevant information in the document."
+        if not docs:
+            return "I couldn't find relevant information."
 
-        # Combine context
         context = "\n\n".join([doc.page_content for doc in docs])
+        prompt = f"Context: {context}\n\nQuestion: {query}\n\nAnswer:"
 
-        # Create Prompt
-        prompt = f"""You are a Study Assistant. Use the Context below to answer the Question.
-        If the answer isn't in the context, say 'I don't see that in your notes'.
-
-        Context: {context}
-
-        Question: {query}
-
-        Answer:"""
-
-        # Call Gemini
-        response = get_gemini_model().generate_content(prompt)
-        return response.text
+        # Generate answer
+        return get_gemini_model().generate_content(prompt).text
 
     except Exception as e:
         print(f"❌ Error: {str(e)}")
@@ -78,43 +75,27 @@ def retrieve_data(query: str) -> str:
 
 retriever_tool = retrieve_data
 
-# --- 4. CHAT LOGIC ---
+# --- CHAT LOGIC ---
 def generate_query_or_respond(state: MessagesState):
-    """Decide whether to retrieve data or just chat."""
-    last_message = state["messages"][-1]
+    try:
+        last_message = state["messages"][-1]
+        user_content = last_message.content.lower() if hasattr(last_message, 'content') else str(last_message).lower()
 
-    # Simple keyword check to save AI calls
-    question_keywords = ["what", "how", "explain", "summary", "tell me", "describe", "?"]
-    user_content = last_message.content.lower() if hasattr(last_message, 'content') else str(last_message).lower()
+        keywords = ["what", "how", "explain", "summary", "tell me", "?"]
 
-    if any(keyword in user_content for keyword in question_keywords):
-        # Use the retriever
-        answer = retrieve_data.invoke({"query": user_content})
-        response = AIMessage(content=answer)
-    else:
-        # Just chat normally
-        response_text = get_gemini_model().generate_content(user_content).text
-        response = AIMessage(content=response_text)
+        if any(k in user_content for k in keywords):
+            answer = retrieve_data.invoke({"query": user_content})
+            response = AIMessage(content=answer)
+        else:
+            text = get_gemini_model().generate_content(user_content).text
+            response = AIMessage(content=text)
 
-    return {"messages": [response]}
+        return {"messages": [response]}
+    except Exception as e:
+        # Fallback if AI fails so server doesn't crash
+        return {"messages": [AIMessage(content=f"⚠️ AI Error: {str(e)}")]}
 
-# --- 5. HELPER FUNCTIONS ---
-def grade_documents(state: MessagesState) -> Literal["generate_answer", "rewrite_question"]:
-    """Simplified grader."""
-    return "generate_answer"  # Keep it simple for now to prevent loops
-
-def rewrite_question(state: MessagesState) -> dict:
-    """Rewrite question."""
-    question = state["messages"][0].content
-    response = get_gemini_model().generate_content(f"Rewrite for search: {question}").text
-    return {"messages": [HumanMessage(content=response)]}
-
-def generate_answer(state: MessagesState):
-    """Generate final answer."""
-    question = state["messages"][0].content
-    context = state["messages"][-1].content
-
-    prompt = f"Answer this question using the context: {question}\nContext: {context}"
-    response = get_gemini_model().generate_content(prompt).text
-
-    return {"messages": [AIMessage(content=response)]}
+# --- PLACEHOLDER FUNCTIONS (To prevent import errors) ---
+def grade_documents(state): return "generate_answer"
+def rewrite_question(state): return {"messages": [HumanMessage(content=state["messages"][0].content)]}
+def generate_answer(state): return generate_query_or_respond(state)

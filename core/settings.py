@@ -129,7 +129,8 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Compresses files for speed (Required for Render)
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Use the lighter version of Whitenoise that doesn't compress on startup
+STATICFILES_STORAGE = 'whitenoise.storage.WhiteNoiseStorage'
 
 
 

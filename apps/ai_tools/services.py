@@ -1,18 +1,19 @@
 import os
-import google.generativeai as genai
 from django.conf import settings
 import PyPDF2
 import json
 
-
-# Configure Gemini with your key
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# --- NO GOOGLE IMPORT HERE ---
 
 def get_ai_response(text, image=None):
     """
     Multimodal AI assistant using Gemini Pro Vision logic.
     """
-    # Initialize the model with your specific accessibility instructions
+    # --- LAZY LOAD: Only import when needed ---
+    import google.generativeai as genai
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+    # Initialize the model
     model = genai.GenerativeModel(
         model_name="gemini-2.5-flash",
         system_instruction=(
@@ -28,14 +29,12 @@ def get_ai_response(text, image=None):
         content.append(text)
 
     if image:
-        # Pass the image directly to Gemini
         content.append({
             "mime_type": image.content_type,
             "data": image.read()
         })
 
     try:
-        # Generate the response
         response = model.generate_content(content)
         return response.text
     except Exception as e:
@@ -49,32 +48,29 @@ def extract_text_from_pdf(pdf_file):
         text = ""
         for page in reader.pages:
             text += page.extract_text() + "\n"
-        return text[:10000] # Limit to 10k chars to save quota
+        return text[:10000]
     except Exception as e:
         return ""
 
 def extract_text_from_docx(docx_file):
-    """
-    Extract text from a Word document (.docx)
-    """
+    """Extract text from a Word document (.docx)"""
     try:
         from docx import Document
         doc = Document(docx_file)
-
         text = ""
         for paragraph in doc.paragraphs:
             text += paragraph.text + "\n"
-
         return text
     except Exception as e:
-        logger.error(f"Error extracting text from DOCX: {e}")
         return ""
 
 
 def generate_flashcards(topic, text_content, num_cards=5):
-    """
-    Asks Gemini to create flashcards in JSON format.
-    """
+    """Asks Gemini to create flashcards in JSON format."""
+    # --- LAZY LOAD ---
+    import google.generativeai as genai
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
     prompt = f"""
     You are a teacher. Create {num_cards} flashcards about "{topic}".
     Base them on this content:
@@ -89,7 +85,6 @@ def generate_flashcards(topic, text_content, num_cards=5):
     ]
     """
 
-    # --- FIX IS HERE: Change 1.5 to 2.5 ---
     model = genai.GenerativeModel("gemini-2.5-flash")
 
     try:
@@ -101,18 +96,19 @@ def generate_flashcards(topic, text_content, num_cards=5):
         return []
 
 
-
 def generate_quiz_data(topic, text_content, num_questions=5):
-    """
-    Asks Gemini to create a quiz in strict JSON format.
-    """
+    """Asks Gemini to create a quiz in strict JSON format."""
+    # --- LAZY LOAD ---
+    import google.generativeai as genai
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
     prompt = f"""
     Create a {num_questions}-question multiple choice quiz about "{topic}".
     Base the questions on this content:
     {text_content[:8000]}
 
     STRICT JSON FORMAT REQUIRED:
-    Return ONLY a raw JSON array. Do not use Markdown blocks (no ```json).
+    Return ONLY a raw JSON array. Do not use Markdown blocks.
     Structure:
     [
         {{
@@ -121,15 +117,12 @@ def generate_quiz_data(topic, text_content, num_questions=5):
             "correct_index": 0
         }}
     ]
-    (Note: correct_index 0 means the first option is the answer).
     """
 
-    # Use the new Flash model
     model = genai.GenerativeModel("gemini-2.5-flash")
 
     try:
         response = model.generate_content(prompt)
-        # Clean text just in case Gemini adds markdown
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
     except Exception as e:

@@ -9,6 +9,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+      GH_ACTOR: ${{ github.actor }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -37,8 +41,9 @@ jobs:
           username: ${{ secrets.LEXIASSIST_STAGING_USER }}
           key: ${{ secrets.LEXIASSIST_STAGING_SSH_KEY }}
           command_timeout: 10m
+          envs: GHCR_PAT,GH_ACTOR
           script: |
-            echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo $GHCR_PAT | docker login ghcr.io -u $GH_ACTOR --password-stdin
             docker pull ghcr.io/lexiassist/lexiassist_project:latest
             cd /opt/app
             docker compose up -d --no-deps web

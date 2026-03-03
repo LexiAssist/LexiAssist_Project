@@ -36,8 +36,9 @@ jobs:
           host: ${{ secrets.LEXIASSIST_STAGING_HOST }}
           username: ${{ secrets.LEXIASSIST_STAGING_USER }}
           key: ${{ secrets.LEXIASSIST_STAGING_SSH_KEY }}
+          command_timeout: 10m
           script: |
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/lexiassist/lexiassist_project:latest
             cd /opt/app
-            docker compose up -d --no-deps --build web
+            docker compose up -d --no-deps web

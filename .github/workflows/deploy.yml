@@ -1,0 +1,39 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
+
+      - name: Deploy to Hetzner staging server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.LEXIASSIST_STAGING_HOST }}
+          username: ${{ secrets.LEXIASSIST_STAGING_USER }}
+          key: ${{ secrets.LEXIASSIST_STAGING_SSH_KEY }}
+          script: |
+            docker pull ghcr.io/${{ github.repository }}:latest
+            cd /opt/app
+            docker compose up -d --no-deps --build web
